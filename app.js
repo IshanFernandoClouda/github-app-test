@@ -33,17 +33,33 @@ const messageForNewPRs = "Thanks for opening a new PR! Please follow our contrib
 // This adds an event handler that your code will call later. When this event handler is called, it will log the event to the console. Then, it will use GitHub's REST API to add a comment to the pull request that triggered the event.
 async function handlePullRequestOpened({octokit, payload}) {
   console.log(`Received a pull request event for #${payload.pull_request.number}`);
+  
+  if (payload.pull_request.user.login != "github-actions[bot]") {
+    console.log("This pull request is not by github-actions[bot]. It was by " + payload.pull_request.user.login + ". Skipping.");
+    return
+  }
+  if (payload.pull_request.head.ref != "deployment"){
+    console.log("This is not the 'deployment' branch. Skipping");
+    return
+  }
+
+  console.log("This PR is by github-actions[bot]. OK");
+  console.log("This PR is from 'deployment' branch. OK")
 
   try {
-    await octokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+    console.log("Approving this PR");
+    await octokit.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews', {
       owner: payload.repository.owner.login,
       repo: payload.repository.name,
-      issue_number: payload.pull_request.number,
-      body: messageForNewPRs,
+      pull_number: payload.pull_request.number,
+      body: "Automated approving PR for deployment",
+      event: "APPROVE",
       headers: {
-        "x-github-api-version": "2022-11-28",
+        "x-.github-api-version": "2022-11-28",
       },
     });
+    console.log("Approved this PR");
+    console.log();
   } catch (error) {
     if (error.response) {
       console.error(`Error! Status: ${error.response.status}. Message: ${error.response.data.message}`)
